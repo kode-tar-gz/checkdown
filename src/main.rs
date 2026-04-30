@@ -2,6 +2,7 @@ use std::vec::Vec;
 use std::fs::File;
 use std::path::PathBuf;
 use std::io::prelude::*;
+use std::collections::{HashSet, HashMap};
 
 use regex::Regex;
 use clap::Parser;
@@ -17,7 +18,7 @@ struct Cli {
     /// path to root (in the case of a website)
     root: String,
 
-    /// check directory recursively
+    /// recursively walk directory
     #[arg(short, long)]
     recursive: Option<bool>,
 }
@@ -43,7 +44,31 @@ impl Link {
     }
 }
 
-fn get_links_from_file(filepath: PathBuf) -> Vec<Link> {
+pub trait Walkable {
+    //fn walk_dir(&mut self, dir: &PathBuf);
+    fn get_dir(&mut self, dir: &PathBuf);
+}
+
+type Files = HashSet<PathBuf>;
+
+impl Walkable for Files {
+    //fn walk_dir(&mut self, dir: &PathBuf){
+    //	todo!("recursive not yet implemented");
+    //}
+
+    fn get_dir(&mut self, dir: &PathBuf) {
+	let entries = dir.read_dir().expect("read_dir call failed");
+	for entry in entries {
+	    if let Ok(entry) = entry {
+		let file = PathBuf::from(entry.path());
+		if file.is_dir() { continue; }
+		else { self.insert(file); }
+	    }
+	}
+    }
+}
+
+fn get_links_from_file(filepath: &PathBuf) -> Vec<Link> {
     let file = File::open(filepath);
     let mut content = String::new();
     file.expect("open file")
@@ -68,12 +93,28 @@ fn main() {
     let cli = Cli::parse();
 
     let filepath = PathBuf::from(cli.path);
-    let link_vec = get_links_from_file(filepath);
+    let mut files = Files::new();
 
-    for link in link_vec {
-	match link {
-	    Link::File(path) => println!("file: {}", path.to_str().unwrap()),
-	    Link::Url(path)  => println!("url: {}", path),
+    if filepath.is_dir() {
+	files.get_dir(&filepath);
+    } else {
+	files.insert(filepath);
+    }
+
+    let mut file_map = HashMap::new();
+    for file in files {
+	let link_vec = get_links_from_file(&file);
+	file_map.insert(file, link_vec);
+    }
+
+    for (file, links) in file_map {
+	println!("Found a file: {}", file.display());
+	if links.len() == 0 { println!("  no links found"); }
+	for link in links {
+	    match link {
+		Link::File(path) => println!("  file: {}", path.to_str().unwrap()),
+		Link::Url(path)  => println!("  url: {}", path),
+	    }
 	}
     }
 
