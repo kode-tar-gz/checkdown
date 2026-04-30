@@ -20,7 +20,15 @@ struct Cli {
 
     /// recursively walk directory
     #[arg(short, long)]
-    recursive: Option<bool>,
+    recursive: bool,
+
+    /// try appending extension to file links without extension
+    #[arg(short = 'p', long)]
+    append_extension: bool,
+
+    /// extension to append with the -p option.
+    #[arg(short, long, default_value = ".md")]
+    extension: String,
 }
 
 // TODO : move all the data structures {Link, FilesSet} and their associated functions to separate file
@@ -48,23 +56,19 @@ impl Link {
 }
 
 pub trait Walkable {
-    //fn walk_dir(&mut self, dir: &PathBuf);
-    fn get_dir(&mut self, dir: &PathBuf);
+    fn get_dir(&mut self, dir: &PathBuf, walk: bool);
 }
 
 type FilesSet = HashSet<PathBuf>;
 
 impl Walkable for FilesSet {
-    //fn walk_dir(&mut self, dir: &PathBuf){
-    //	todo!("recursive not yet implemented");
-    //}
-
-    fn get_dir(&mut self, dir: &PathBuf) {
+    fn get_dir(&mut self, dir: &PathBuf, walk: bool) {
 	let entries = dir.read_dir().expect("read_dir call failed");
 	for entry in entries {
 	    if let Ok(entry) = entry {
 		let file = PathBuf::from(entry.path());
-		if file.is_dir() { continue; }
+		if file.is_dir() && walk { self.get_dir(&file, walk); }
+		else if file.is_dir() { continue; }
 		else { self.insert(file); }
 	    }
 	}
@@ -78,11 +82,11 @@ fn get_links_from_file(filepath: &PathBuf) -> Vec<Link> {
 	.read_to_string(&mut content)
 	.unwrap();
 
-    let reg = Regex::new(r"\[(?P<text>[^\]]+)\]\((?P<url>[^)]+)\)").unwrap();
+    let reg = Regex::new(r"\[(?P<text>[^\]]+)\]\((?P<link>[^)]+)\)").unwrap();
     let mut link_vec = Vec::new();
 
     for cap in reg.captures_iter(&content) {
-	let link = match Link::from_string(&cap["url"]) {
+	let link = match Link::from_string(&cap["link"]) {
 	    Some(x) => x,
 	    None => continue,
 	};
@@ -95,12 +99,14 @@ fn get_links_from_file(filepath: &PathBuf) -> Vec<Link> {
 fn main() {
     let cli = Cli::parse();
 
-    let filepath = PathBuf::from(cli.path);
+    let filepath = PathBuf::from(cli.path).canonicalize().expect("invalid filepath");
+    //let root = PathBuf::from(cli.root).canonicalize().expect("invalid root path");
     let mut files = FilesSet::new();
 
     if filepath.is_dir() {
-	files.get_dir(&filepath);
+	files.get_dir(&filepath, cli.recursive);
     } else {
+	if cli.recursive { println!("WARNING: recursive flag toggled on but path provided is a file. Ignoring..."); }
 	files.insert(filepath);
     }
 
@@ -116,7 +122,7 @@ fn main() {
 	for link in links {
 	    match link {
 		Link::File(path) => println!("  file: {}", path.to_str().unwrap()),
-		Link::Url(path)  => println!("  url: {}", path),
+		Link::Url(url)  => println!("  url: {}", url),
 	    }
 	}
     }
