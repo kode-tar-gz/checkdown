@@ -7,6 +7,8 @@ use std::collections::{HashSet, HashMap};
 use regex::Regex;
 use clap::Parser;
 
+// TODO : add orphans checking 
+// TODO : clarify cli args and options and help message and about
 // command line stuff
 #[derive(Parser)]
 #[command(version = "0.0.1")]
