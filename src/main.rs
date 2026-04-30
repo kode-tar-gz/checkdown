@@ -23,7 +23,10 @@ struct Cli {
     recursive: Option<bool>,
 }
 
-// internal datastructures
+// TODO : move all the data structures {Link, FilesSet} and their associated functions to separate file
+
+// TODO : add anchor support
+// Links can either be files or urls currently; anchors might get added later
 enum Link {
     File(PathBuf),
     Url(String),
@@ -49,9 +52,9 @@ pub trait Walkable {
     fn get_dir(&mut self, dir: &PathBuf);
 }
 
-type Files = HashSet<PathBuf>;
+type FilesSet = HashSet<PathBuf>;
 
-impl Walkable for Files {
+impl Walkable for FilesSet {
     //fn walk_dir(&mut self, dir: &PathBuf){
     //	todo!("recursive not yet implemented");
     //}
@@ -93,7 +96,7 @@ fn main() {
     let cli = Cli::parse();
 
     let filepath = PathBuf::from(cli.path);
-    let mut files = Files::new();
+    let mut files = FilesSet::new();
 
     if filepath.is_dir() {
 	files.get_dir(&filepath);
