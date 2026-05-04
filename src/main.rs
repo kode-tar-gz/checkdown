@@ -17,8 +17,13 @@ struct Cli {
     /// path to file or directory to be checked
     path: String,
 
-    /// path to root (in the case of a website)
+    /// path to project root
+    #[arg(short = 'o', long, default_value = ".")]
     root: String,
+
+    /// extension to append with the -p option.
+    #[arg(short, long, default_value = ".md")]
+    extension: String,
 
     /// recursively walk directory
     #[arg(short, long)]
@@ -27,10 +32,6 @@ struct Cli {
     /// try appending extension to file links without extension
     #[arg(short = 'p', long)]
     append_extension: bool,
-
-    /// extension to append with the -p option.
-    #[arg(short, long, default_value = ".md")]
-    extension: String,
 }
 
 // TODO : move all the data structures {Link, FilesSet} and their associated functions to separate file
