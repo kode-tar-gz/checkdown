@@ -1,5 +1,6 @@
 use std::vec::Vec;
 use std::fs::File;
+use std::path::Path;
 use std::path::PathBuf;
 use std::io::prelude::*;
 use std::collections::{HashSet, HashMap};
@@ -47,7 +48,7 @@ impl Link {
     fn from_string(content: &str) -> Option<Link> {
 	let url_reg = Regex::new(r"^[a-z0-9+.-]+:").unwrap();
 
-	if url_reg.is_match(&content) {
+	if url_reg.is_match(content) {
 	    return Some(Link::Url(content.to_string()));
 	} else if !content.starts_with("#"){
 	    let path = PathBuf::from(content.to_string());
@@ -59,21 +60,19 @@ impl Link {
 }
 
 pub trait Walkable {
-    fn get_dir(&mut self, dir: &PathBuf, walk: bool);
+    fn get_dir(&mut self, dir: &Path, walk: bool);
 }
 
 type FilesSet = HashSet<PathBuf>;
 
 impl Walkable for FilesSet {
-    fn get_dir(&mut self, dir: &PathBuf, walk: bool) {
+    fn get_dir(&mut self, dir: &Path, walk: bool) {
 	let entries = dir.read_dir().expect("read_dir call failed");
-	for entry in entries {
-	    if let Ok(entry) = entry {
-		let file = PathBuf::from(entry.path());
-		if file.is_dir() && walk { self.get_dir(&file, walk); }
-		else if file.is_dir() { continue; }
-		else { self.insert(file); }
-	    }
+	for entry in entries.flatten() {
+	    let file = entry.path();
+	    if file.is_dir() && walk { self.get_dir(&file, walk); }
+	    else if file.is_dir() { continue; }
+	    else { self.insert(file); }
 	}
     }
 }
@@ -121,7 +120,7 @@ fn main() {
 
     for (file, links) in file_map {
 	println!("Found a file: {}", file.display());
-	if links.len() == 0 { println!("  no links found"); }
+	if links.is_empty() { println!("  no links found"); }
 	for link in links {
 	    match link {
 		Link::File(path) => println!("  file: {}", path.to_str().unwrap()),
